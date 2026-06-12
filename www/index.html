@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Monuments de Paris</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#070510;--gold:#c9a84c;--gold2:#e8c97a;--parch:#f5f0e8;
+  --card:#0f0c1e;--border:#2a2040;--text:#e8e0d0;--muted:#8a7d9a;
+  --fs:1;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--ink)}
+#app{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;background:var(--ink);overflow:hidden}
+
+/* HEADER */
+.header{
+  padding-top:calc(14px + env(safe-area-inset-top));
+  padding-bottom:10px;padding-left:16px;padding-right:16px;
+  flex-shrink:0;background:var(--ink);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.header-title{
+  font-family:'IM Fell English',serif;
+  font-size:calc(20px * var(--fs));color:var(--gold);
+  letter-spacing:.02em;flex:1;text-align:center;
+}
+.btn-lang{background:none;border:none;font-size:calc(20px * var(--fs));cursor:pointer;padding:4px}
+.btn-settings{background:none;border:none;color:var(--muted);font-size:calc(18px * var(--fs));cursor:pointer;padding:4px}
+
+/* TABS */
+.tabs{display:flex;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--ink)}
+.tab{flex:1;padding:10px 4px;background:none;border:none;
+  font-family:'Cormorant Garamond',serif;font-size:calc(14px * var(--fs));
+  color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:.2s}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+
+/* SEARCH */
+.search-wrap{position:relative;padding:10px 14px;flex-shrink:0}
+.search-input{
+  width:100%;background:var(--card);border:1px solid var(--border);border-radius:20px;
+  padding:8px 36px 8px 14px;color:var(--text);
+  font-family:'Cormorant Garamond',serif;font-size:calc(15px * var(--fs));outline:none;
+}
+.search-input::placeholder{color:var(--muted)}
+.search-clear{
+  position:absolute;right:22px;top:50%;transform:translateY(-50%);
+  background:var(--muted);border:none;border-radius:50%;
+  width:22px;height:22px;display:none;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--ink);font-size:12px;font-weight:bold;
+}
+
+/* MAIN */
+.main{flex:1;overflow-y:auto;padding-bottom:calc(12px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* CATEGORY LABEL */
+.cat-label{
+  padding:8px 14px 4px;
+  font-family:'Cormorant Garamond',serif;font-size:calc(11px * var(--fs));
+  color:var(--gold);letter-spacing:.12em;text-transform:uppercase;
+  border-top:1px solid var(--border);margin-top:4px;
+}
+.cat-label:first-child{border-top:none;margin-top:0}
+
+/* MONUMENT CARD */
+.mon-item{
+  display:flex;align-items:center;padding:10px 14px;gap:12px;
+  border-bottom:1px solid var(--border);cursor:pointer;transition:.15s;
+}
+.mon-item:active{background:var(--card)}
+.mon-thumb{
+  width:54px;height:54px;border-radius:6px;object-fit:cover;
+  background:var(--card);border:1px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:24px;
+}
+.mon-thumb img{width:54px;height:54px;border-radius:6px;object-fit:cover}
+.mon-info{flex:1;min-width:0}
+.mon-name{font-family:'Cormorant Garamond',serif;font-size:calc(16px * var(--fs));
+  color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mon-sub{font-family:'Cormorant Garamond',serif;font-size:calc(12px * var(--fs));
+  color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mon-arr{color:var(--muted);font-size:14px;flex-shrink:0}
+
+/* DETAIL PANEL */
+#detail{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:var(--ink);z-index:100;display:none;flex-direction:column;overflow:hidden;
+}
+#detail.open{display:flex}
+.detail-header{
+  padding-top:calc(14px + env(safe-area-inset-top));
+  padding-bottom:10px;padding-left:14px;padding-right:14px;
+  display:flex;align-items:center;gap:10px;flex-shrink:0;
+  border-bottom:1px solid var(--border);background:var(--ink);
+}
+.btn-back{background:none;border:none;color:var(--gold);font-size:22px;cursor:pointer;padding:4px 8px 4px 0}
+.detail-title{font-family:'IM Fell English',serif;font-size:calc(18px * var(--fs));color:var(--gold);flex:1}
+.btn-lang-d{background:none;border:none;font-size:20px;cursor:pointer;padding:4px}
+.detail-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+.detail-img-wrap{position:relative;width:100%;max-height:420px;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.detail-img-wrap img{width:100%;max-height:420px;object-fit:contain;display:block}
+.detail-img-placeholder{width:100%;height:220px;background:var(--card);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.detail-img-placeholder span{font-size:52px}
+.btn-load-photo{
+  background:var(--gold);color:var(--ink);border:none;border-radius:20px;
+  padding:8px 18px;font-family:'Cormorant Garamond',serif;
+  font-size:calc(13px * var(--fs));font-weight:600;cursor:pointer;
+}
+.detail-cat-badge{
+  display:inline-block;margin:12px 14px 0;padding:3px 10px;border-radius:12px;
+  background:var(--card);border:1px solid var(--border);
+  font-family:'Cormorant Garamond',serif;font-size:calc(11px * var(--fs));
+  color:var(--gold);letter-spacing:.08em;
+}
+.detail-main-title{
+  padding:8px 14px 4px;
+  font-family:'IM Fell English',serif;font-size:calc(22px * var(--fs));color:var(--gold2);
+}
+.detail-dates{padding:0 14px 8px;font-family:'Cormorant Garamond',serif;
+  font-size:calc(13px * var(--fs));color:var(--muted);font-style:italic}
+.detail-text{padding:0 14px 12px;font-family:'Cormorant Garamond',serif;
+  font-size:calc(15px * var(--fs));color:var(--text);line-height:1.65}
+.detail-sep{height:1px;background:var(--border);margin:4px 14px}
+.detail-facts{padding:10px 14px;display:flex;flex-direction:column;gap:6px}
+.fact-row{display:flex;gap:8px;align-items:flex-start}
+.fact-label{font-family:'Cormorant Garamond',serif;font-size:calc(12px * var(--fs));
+  color:var(--gold);min-width:90px;letter-spacing:.06em;text-transform:uppercase}
+.fact-val{font-family:'Cormorant Garamond',serif;font-size:calc(14px * var(--fs));color:var(--text)}
+
+/* CARTE */
+#map{height:100%;width:100%}
+.map-wrap{height:100%}
+
+/* QUIZ */
+.quiz-wrap{padding:14px}
+.quiz-score-bar{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 0 12px;border-bottom:1px solid var(--border);margin-bottom:14px;
+}
+.quiz-score{font-family:'Cormorant Garamond',serif;font-size:calc(15px * var(--fs));color:var(--gold)}
+.quiz-progress{font-family:'Cormorant Garamond',serif;font-size:calc(13px * var(--fs));color:var(--muted)}
+.quiz-img-wrap{width:100%;height:200px;background:var(--card);border-radius:10px;
+  overflow:hidden;margin-bottom:14px;position:relative}
+.quiz-img-wrap img{width:100%;max-height:280px;object-fit:contain;background:#000}
+.quiz-img-emoji{width:100%;height:200px;background:var(--card);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:64px}
+.quiz-question{font-family:'IM Fell English',serif;font-size:calc(17px * var(--fs));
+  color:var(--text);margin-bottom:14px;line-height:1.4;text-align:center}
+.quiz-choices{display:flex;flex-direction:column;gap:10px}
+.quiz-btn{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:14px;color:var(--text);font-family:'Cormorant Garamond',serif;
+  font-size:calc(15px * var(--fs));cursor:pointer;text-align:left;transition:.15s;
+}
+.quiz-btn.correct{background:#1a3a1a;border-color:#4caf50;color:#7fcf7f}
+.quiz-btn.wrong{background:#3a1a1a;border-color:#cf4c4c;color:#cf8080}
+.quiz-btn:disabled{cursor:default}
+.quiz-next{
+  margin-top:14px;width:100%;background:var(--gold);color:var(--ink);border:none;
+  border-radius:20px;padding:12px;font-family:'Cormorant Garamond',serif;
+  font-size:calc(15px * var(--fs));font-weight:600;cursor:pointer;
+}
+.quiz-result{text-align:center;padding:20px 14px}
+.quiz-result-score{font-family:'IM Fell English',serif;font-size:calc(48px * var(--fs));color:var(--gold)}
+.quiz-result-text{font-family:'Cormorant Garamond',serif;font-size:calc(16px * var(--fs));color:var(--text);margin-top:8px}
+.quiz-restart{margin-top:16px;background:var(--gold);color:var(--ink);border:none;
+  border-radius:20px;padding:12px 30px;font-family:'Cormorant Garamond',serif;
+  font-size:calc(15px * var(--fs));font-weight:600;cursor:pointer}
+
+/* SETTINGS */
+#settings{
+  position:fixed;top:0;left:0;right:0;bottom:0;background:var(--ink);
+  z-index:200;display:none;flex-direction:column;
+}
+#settings.open{display:flex}
+.settings-header{
+  padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:10px;
+  padding-left:14px;padding-right:14px;
+  display:flex;align-items:center;gap:10px;flex-shrink:0;
+  border-bottom:1px solid var(--border);
+}
+.settings-title{font-family:'IM Fell English',serif;font-size:calc(18px * var(--fs));color:var(--gold);flex:1}
+.settings-body{flex:1;overflow-y:auto;padding:12px 14px calc(20px + env(safe-area-inset-bottom))}
+.settings-section{margin-bottom:16px}
+.settings-sec-title{font-family:'Cormorant Garamond',serif;font-size:calc(11px * var(--fs));
+  color:var(--gold);letter-spacing:.12em;text-transform:uppercase;
+  padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:10px}
+.apps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.app-cell{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;text-decoration:none}
+.app-icon{width:56px;height:56px;border-radius:12px;background:var(--card);
+  border:1px solid var(--border);overflow:hidden}
+.app-icon img{width:56px;height:56px;border-radius:12px}
+.app-label{font-family:'Cormorant Garamond',serif;font-size:9px;color:var(--muted);
+  text-align:center;line-height:1.2;max-width:64px;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.settings-font-row{display:flex;align-items:center;gap:12px;margin-top:8px}
+.settings-font-row span{font-family:'Cormorant Garamond',serif;font-size:calc(14px * var(--fs));color:var(--text);flex:1}
+.btn-font{background:var(--card);border:1px solid var(--border);border-radius:8px;
+  padding:6px 14px;color:var(--gold);font-size:14px;cursor:pointer}
+
+/* LOADING SPINNER */
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);
+  border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Leaflet custom popup */
+.leaflet-popup-content-wrapper{background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text)}
+.leaflet-popup-tip{background:var(--card)}
+.leaflet-popup-content{font-family:'Cormorant Garamond',serif;font-size:14px;margin:8px 12px}
+.popup-name{color:var(--gold);font-weight:600;font-size:15px}
+.btn-itinerary{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  margin:14px 14px 0;width:calc(100% - 28px);
+  background:var(--gold);color:var(--ink);border:none;border-radius:20px;
+  padding:13px;font-family:'Cormorant Garamond',serif;
+  font-size:calc(15px * var(--fs));font-weight:600;cursor:pointer;
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- HEADER -->
+  <div class="header">
+    <button class="btn-settings" onclick="openSettings()">📱</button>
+    <div class="header-title" id="hTitle">Monuments de Paris</div>
+    <button class="btn-lang" id="btnLang" onclick="toggleLang()">🇬🇧</button>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" id="tab0" onclick="switchTab(0)"><span id="tliste">Liste</span></button>
+    <button class="tab" id="tab1" onclick="switchTab(1)"><span id="tcarte">Carte</span></button>
+    <button class="tab" id="tab2" onclick="switchTab(2)"><span id="tquiz">Quiz</span></button>
+  </div>
+
+  <!-- SEARCH (visible only on Liste) -->
+  <div class="search-wrap" id="searchWrap">
+    <input class="search-input" id="searchInput" placeholder="Rechercher…" oninput="onSearch(this.value)">
+    <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main" id="mainScroll">
+    <!-- Liste -->
+    <div class="tab-content active" id="tc0">
+      <div id="monList"></div>
+    </div>
+    <!-- Carte -->
+    <div class="tab-content" id="tc1">
+      <div class="map-wrap" id="mapWrap"><div id="map"></div></div>
+    </div>
+    <!-- Quiz -->
+    <div class="tab-content" id="tc2">
+      <div class="quiz-wrap" id="quizWrap"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div id="detail">
+  <div class="detail-header">
+    <button class="btn-back" onclick="closeDetail()">‹</button>
+    <div class="detail-title" id="dTitle"></div>
+    <button class="btn-lang-d" id="btnLangD" onclick="toggleLang()">🇬🇧</button>
+  </div>
+  <div class="detail-body" id="detailBody"></div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settings">
+  <div class="settings-header">
+    <button class="btn-back" onclick="closeSettings()">‹</button>
+    <div class="settings-title" id="sTitle">Nos autres apps</div>
+  </div>
+  <div class="settings-body" id="settingsBody"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  DONNÉES — 60 monuments de Paris
+// ═══════════════════════════════════════════════════════
+const MONUMENTS = [
+                   // ═══ Emblématiques ═══
+                   {id:1,cat:"🗼",catFR:"Emblématiques",catEN:"Iconic",
+                    fr:"Tour Eiffel",en:"Eiffel Tower",
+                    wt:"Tour Eiffel",wf:"Tour_Eiffel_Wikimedia_Commons_(cropped).jpg",
+                    lat:48.8584,lng:2.2945,
+                    dateFR:"1887–1889",dateEN:"1887–1889",
+                    textFR:"Conçue par Gustave Eiffel pour l'Exposition universelle de 1889, la tour devait être démontée après 20 ans. Haute de 330 mètres, elle fut longtemps la structure la plus haute du monde et reste le monument payant le plus visité de la planète avec plus de 7 millions de visiteurs par an.",
+                    textEN:"Designed by Gustave Eiffel for the 1889 World's Fair, the tower was originally planned for demolition after 20 years. Standing 330 metres tall, it was long the world's tallest structure and remains the most visited paid monument on Earth, welcoming over 7 million visitors annually.",
+                    arr:"7e",style:"Fer forgé",arch:"Gustave Eiffel"},
+
+                   {id:2,cat:"🗼",catFR:"Emblématiques",catEN:"Iconic",
+                    fr:"Arc de Triomphe",en:"Arc de Triomphe",
+                    wt:"Arc de Triomphe",wf:"Arc_de_Triomphe,_Paris_2023.jpg",
+                    lat:48.8738,lng:2.2950,
+                    dateFR:"1806–1836",dateEN:"1806–1836",
+                    textFR:"Commandé par Napoléon Ier après la victoire d'Austerlitz, l'arc fut achevé sous Louis-Philippe. Il honore les armées françaises et abrite depuis 1921 la tombe du Soldat Inconnu, sous la Flamme du souvenir. Ses 12 avenues rayonnantes forment l'Étoile.",
+                    textEN:"Commissioned by Napoleon I after the Battle of Austerlitz and completed under Louis-Philippe, the arch honours the French armies. Since 1921 it has housed the Tomb of the Unknown Soldier, beneath the eternal flame. Its 12 radiating avenues form the famous Étoile.",
+                    arr:"8e",style:"Néoclassique",arch:"Jean Chalgrin"},
+
+                   {id:3,cat:"🗼",catFR:"Emblématiques",catEN:"Iconic",
+                    fr:"Sacré-Cœur",en:"Sacré-Cœur Basilica",
+                    wt:"Basilique du Sacré-Cœur de Montmartre",wf:"Sacre-Coeur,_Montmartre.jpg",
+                    lat:48.8867,lng:2.3431,
+                    dateFR:"1875–1914",dateEN:"1875–1914",
+                    textFR:"Érigée au sommet de la butte Montmartre, la basilique fut construite pour expier les crimes de la Commune de 1871. Son dôme blanc en travertin de Château-Landon est caractéristique : plus il est mouillé, plus la pierre blanchit. Elle offre l'un des panoramas les plus étendus de Paris.",
+                    textEN:"Built atop the Montmartre hill as an act of national penance following the 1871 Commune, the basilica's white travertine dome has a unique quality: the more it is exposed to rain, the whiter it becomes. It commands one of the widest panoramic views over Paris.",
+                    arr:"18e",style:"Romano-byzantin",arch:"Paul Abadie"},
+
+                   {id:4,cat:"🗼",catFR:"Emblématiques",catEN:"Iconic",
+                    fr:"Colonne Vendôme",en:"Vendôme Column",
+                    wt:"Colonne Vendôme",wf:"Vendome_column.jpg",
+                    lat:48.8679,lng:2.3296,
+                    dateFR:"1806–1810",dateEN:"1806–1810",
+                    textFR:"Érigée par Napoléon à l'imitation de la colonne Trajane de Rome, elle est recouverte d'une spirale de bronze fondu à partir de 1 250 canons capturés à Austerlitz. Renversée par la Commune en 1871, elle fut relevée en 1875. Au sommet trône une statue de Napoléon en toge romaine.",
+                    textEN:"Erected by Napoleon in imitation of Trajan's Column in Rome, it is clad in a bronze spiral cast from 1,250 cannons captured at Austerlitz. Toppled during the 1871 Commune, it was re-erected in 1875. Its summit bears a statue of Napoleon in Roman toga.",
+                    arr:"1er",style:"Néoclassique",arch:"Jacques Gondouin"},
+
+                   // ═══ Religieux ═══
+                   {id:5,cat:"⛪",catFR:"Religieux",catEN:"Religious",
+                    fr:"Notre-Dame de Paris",en:"Notre-Dame Cathedral",
+                    wt:"Cathédrale Notre-Dame de Paris",wf:"Notre-Dame_de_Paris_2013-07-24.jpg",
+                    lat:48.8530,lng:2.3499,
+                    dateFR:"1163–1345",dateEN:"1163–1345",
+                    textFR:"Chef-d'œuvre du gothique médiéval, Notre-Dame fut construite sur l'île de la Cité sous l'évêque Maurice de Sully. Gravement endommagée lors de l'incendie du 15 avril 2019, elle a rouvert ses portes le 7 décembre 2024 après cinq années de restauration.",
+                    textEN:"A masterpiece of medieval Gothic architecture, Notre-Dame was built on the Île de la Cité under Bishop Maurice de Sully. Severely damaged in the fire of 15 April 2019, it reopened on 7 December 2024 after five years of restoration.",
+                    arr:"4e",style:"Gothique",arch:"Jean de Chelles"},
+
+                   {id:6,cat:"⛪",catFR:"Religieux",catEN:"Religious",
+                    fr:"Sainte-Chapelle",en:"Sainte-Chapelle",
+                    wt:"Sainte-Chapelle",wf:"Sainte-Chapelle_(1).jpg",
+                    lat:48.8554,lng:2.3450,
+                    dateFR:"1242–1248",dateEN:"1242–1248",
+                    textFR:"Joyau du gothique rayonnant érigé par Saint Louis pour abriter la couronne d'épines du Christ. Ses 15 verrières monumentales représentent plus de 1 000 m² de vitraux du XIIIe siècle, créant un effet de cathédrale de lumière incomparable.",
+                    textEN:"A jewel of Rayonnant Gothic built by King Louis IX to house the Crown of Thorns. Its 15 monumental windows comprise over 1,000 m² of 13th-century stained glass, creating an unrivalled effect of a cathedral of light.",
+                    arr:"1er",style:"Gothique rayonnant",arch:"Inconnu"},
+
+                   {id:7,cat:"⛪",catFR:"Religieux",catEN:"Religious",
+                    fr:"Panthéon",en:"The Panthéon",
+                    wt:"Panthéon (Paris)",wf:"Paris_Pantheon_2.jpg",
+                    lat:48.8462,lng:2.3461,
+                    dateFR:"1758–1790",dateEN:"1758–1790",
+                    textFR:"Conçu à l'origine comme église Sainte-Geneviève, il fut transformé en nécropole laïque après la Révolution. Ses cryptes abritent les dépouilles de 80 grands Français dont Voltaire, Rousseau, Victor Hugo, Marie Curie et Simone Veil.",
+                    textEN:"Originally designed as the Church of Sainte-Geneviève, it was converted into a secular mausoleum after the Revolution. Its crypts hold the remains of 80 eminent French figures including Voltaire, Rousseau, Victor Hugo, Marie Curie and Simone Veil.",
+                    arr:"5e",style:"Néoclassique",arch:"Jacques-Germain Soufflot"},
+
+                   {id:8,cat:"⛪",catFR:"Religieux",catEN:"Religious",
+                    fr:"Madeleine",en:"La Madeleine",
+                    wt:"Église de la Madeleine",wf:"La_Madeleine_Church_-_2.jpg",
+                    lat:48.8699,lng:2.3247,
+                    dateFR:"1764–1842",dateEN:"1764–1842",
+                    textFR:"Ressemblant à un temple grec avec ses 52 colonnes corinthiennes de 20 mètres, l'église de la Madeleine connut un destin mouvementé : tour à tour église, Bourse, temple de la Gloire napoléonienne, avant de devenir une église catholique. Sa position clôt majestueusement la rue Royale.",
+                    textEN:"Resembling a Greek temple with its 52 Corinthian columns standing 20 metres tall, La Madeleine had a turbulent history: variously planned as a church, a stock exchange, and a Napoleonic Temple of Glory before finally becoming a Catholic church. It closes the rue Royale majestically.",
+                    arr:"8e",style:"Néoclassique",arch:"Pierre Vignon"},
+
+                   {id:9,cat:"⛪",catFR:"Religieux",catEN:"Religious",
+                    fr:"Saint-Germain-des-Prés",en:"Saint-Germain-des-Prés",
+                    wt:"Église Saint-Germain-des-Prés",wf:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Abbaye_de_Saint-Germain-des-Prés_140131_1.jpg/960px-Abbaye_de_Saint-Germain-des-Prés_140131_1.jpg",
+                    lat:48.8541,lng:2.3330,
+                    dateFR:"1000–XIIe s.",dateEN:"c.1000–12th c.",
+                    textFR:"Plus ancienne église de Paris, Saint-Germain-des-Prés est le seul vestige de l'abbaye bénédictine fondée au VIe siècle par le roi Childebert. Son clocher du XIe siècle est l'un des plus anciens de France. Elle fut un haut lieu de l'existentialisme parisien de l'après-guerre.",
+                    textEN:"Paris's oldest church, Saint-Germain-des-Prés is the sole surviving remnant of the Benedictine abbey founded in the 6th century by King Childebert. Its 11th-century tower is one of the oldest in France. It became a focal point of post-war Parisian existentialism.",
+                    arr:"6e",style:"Roman",arch:"Inconnu"},
+
+                   {id:10,cat:"⛪",catFR:"Religieux",catEN:"Religious",
+                    fr:"Saint-Sulpice",en:"Saint-Sulpice",
+                    wt:"Église Saint-Sulpice de Paris",wf:"Fontaine_Saint-Sulpice.jpg",
+                    lat:48.8510,lng:2.3345,
+                    dateFR:"1646–1788",dateEN:"1646–1788",
+                    textFR:"Deuxième église de Paris par la taille, Saint-Sulpice abrite les fresques murales de Delacroix dans la chapelle des Saints-Anges. Le roman Da Vinci Code l'a rendue célèbre dans le monde entier, bien que l'auteur ait largement romancé la réalité de sa gnomone.",
+                    textEN:"The second largest church in Paris, Saint-Sulpice houses Delacroix's murals in the Chapel of the Holy Angels. Dan Brown's Da Vinci Code brought it world fame, though the author greatly fictionalised the reality of its famous gnomon.",
+                    arr:"6e",style:"Classique",arch:"Gilles-Marie Oppenord"},
+
+                   // ═══ Palais & Châteaux ═══
+                   {id:11,cat:"🏰",catFR:"Palais & Châteaux",catEN:"Palaces & Castles",
+                    fr:"Palais du Louvre",en:"The Louvre Palace",
+                    wt:"Louvre",wf:"Louvre_2007_02_02c.jpg",
+                    lat:48.8606,lng:2.3376,
+                    dateFR:"XIIe–XIXe s.",dateEN:"12th–19th c.",
+                    textFR:"Du donjon médiéval de Philippe Auguste à la pyramide de Pei inaugurée en 1989, le Louvre est à la fois le plus grand palais de France et le musée le plus visité au monde. Ses 35 000 œuvres exposées sur 73 000 m² lui confèrent un statut unique dans l'histoire culturelle de l'humanité.",
+                    textEN:"From Philippe Auguste's medieval keep to I.M. Pei's pyramid unveiled in 1989, the Louvre is both France's largest palace and the world's most visited museum. Its 35,000 works displayed across 73,000 m² give it a unique place in the cultural history of humanity.",
+                    arr:"1er",style:"Renaissance / Classique",arch:"Pierre Lescot & I.M. Pei"},
+
+                   {id:12,cat:"🏰",catFR:"Palais & Châteaux",catEN:"Palaces & Castles",
+                    fr:"Palais Royal",en:"Palais Royal",
+                    wt:"Palais-Royal",wf:"Palais_Royal_Paris.jpg",
+                    lat:48.8638,lng:2.3370,
+                    dateFR:"1629–1639",dateEN:"1629–1639",
+                    textFR:"Construit pour Richelieu et légué à Louis XIII, le Palais-Royal fut longtemps un lieu de promenade et de commerces licencieux. Son jardin flanqué de galeries abrite les célèbres colonnes de Buren. C'est ici que fut lancée l'insurrection qui déclencha la prise de la Bastille en 1789.",
+                    textEN:"Built for Cardinal Richelieu and bequeathed to Louis XIII, the Palais-Royal was long a place for promenades and licentious trade. Its colonnaded garden houses Buren's famous striped columns. It was here that the insurrection that triggered the storming of the Bastille in 1789 was launched.",
+                    arr:"1er",style:"Classique",arch:"Jacques Lemercier"},
+
+                   {id:13,cat:"🏰",catFR:"Palais & Châteaux",catEN:"Palaces & Castles",
+                    fr:"Élysée",en:"Élysée Palace",
+                    wt:"Palais de l'Élysée",wf:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Secretary_Pompeo_Arrives_to_Meet_with_French_Foreign_Minister_Le_Drian_in_Paris_%2850610423656%29_%28cropped%29.jpg/960px-Secretary_Pompeo_Arrives_to_Meet_with_French_Foreign_Minister_Le_Drian_in_Paris_%2850610423656%29_%28cropped%29.jpg",
+                    lat:48.8699,lng:2.3165,
+                    dateFR:"1722",dateEN:"1722",
+                    textFR:"Résidence officielle du Président de la République française depuis 1873, l'Élysée fut d'abord construit pour le comte d'Évreux, puis passa par les mains de Mme de Pompadour, de Napoléon Ier et de son frère. Ses 11 hectares de jardins en font un havre au cœur du 8e.",
+                    textEN:"The official residence of France's President since 1873, the Élysée was first built for the Count of Évreux, then passed through the hands of Mme de Pompadour, Napoleon I and his brother. Its 11 hectares of gardens make it a haven in the heart of the 8th arrondissement.",
+                    arr:"8e",style:"Classique",arch:"Armand-Claude Mollet"},
+
+                   {id:14,cat:"🏰",catFR:"Palais & Châteaux",catEN:"Palaces & Castles",
+                    fr:"Hôtel de Ville",en:"Paris City Hall",
+                    wt:"Hôtel de ville de Paris",wf:"Hotel_de_ville_Paris_2015.jpg",
+                    lat:48.8564,lng:2.3523,
+                    dateFR:"1533–1882",dateEN:"1533–1882",
+                    textFR:"Siège de la commune de Paris depuis le XVIe siècle, l'Hôtel de Ville actuel est une reconstruction de 1882, l'original ayant été incendié sous la Commune en 1871. Sa façade Renaissance abrite la plus grande salle des fêtes de Paris. La place devant lui fut baptisée Place de Grève.",
+                    textEN:"Paris's municipal seat since the 16th century, the current building is a reconstruction of 1882, after the original was burned down during the 1871 Commune. Its Renaissance façade contains Paris's largest reception hall. The square before it was once called Place de Grève, giving us the French word for strike.",
+                    arr:"4e",style:"Renaissance",arch:"Théodore Ballu"},
+
+                   {id:15,cat:"🏰",catFR:"Palais & Châteaux",catEN:"Palaces & Castles",
+                    fr:"Château de Vincennes",en:"Château de Vincennes",
+                    wt:"Château de Vincennes",wf:"Chateau_de_Vincennes_-_panoramio.jpg",
+                    lat:48.8441,lng:2.4354,
+                    dateFR:"1337–1369",dateEN:"1337–1369",
+                    textFR:"Forteresse royale médiévale aux portes de Paris, Vincennes fut la résidence favorite des rois capétiens. Son donjon de 52 mètres est le plus haut de France. Louis IX y rendit la justice sous un chêne, Mazarin y mourut en 1661, et le duc d'Enghien y fut exécuté sur ordre de Napoléon.",
+                    textEN:"A medieval royal fortress at the gates of Paris, Vincennes was the favourite residence of the Capetian kings. Its 52-metre keep is the tallest in France. Louis IX dispensed justice here under an oak tree, Mazarin died here in 1661, and the Duke of Enghien was executed by Napoleon's order.",
+                    arr:"Val-de-Marne",style:"Gothique militaire",arch:"Raymond du Temple"},
+
+                   // ═══ Civils & Institutions ═══
+                   {id:16,cat:"🏛️",catFR:"Civils & Institutions",catEN:"Civic & Institutions",
+                    fr:"Assemblée nationale",en:"National Assembly",
+                    wt:"Palais Bourbon",wf:"Paris_Assemblee_Nationale.jpg",
+                    lat:48.8627,lng:2.3170,
+                    dateFR:"1722–1728",dateEN:"1722–1728",
+                    textFR:"Siège de la chambre basse du Parlement français depuis 1827, le Palais Bourbon fut construit pour Louise-Françoise de Bourbon, fille légitimée de Louis XIV. Sa colonnade néoclassique fut ajoutée sous Napoléon pour faire écho à la façade de la Madeleine sur l'axe de la rue Royale.",
+                    textEN:"Home to France's lower house of Parliament since 1827, the Palais Bourbon was built for Louise-Françoise de Bourbon, the legitimised daughter of Louis XIV. Its Neoclassical colonnade was added under Napoleon to echo La Madeleine's facade across the axis of the rue Royale.",
+                    arr:"7e",style:"Néoclassique",arch:"Lorenzo Giardini"},
+
+                   {id:17,cat:"🏛️",catFR:"Civils & Institutions",catEN:"Civic & Institutions",
+                    fr:"Sénat – Palais du Luxembourg",en:"Senate – Luxembourg Palace",
+                    wt:"Palais du Luxembourg",wf:"Paris_palais_luxembourg_facade.jpg",
+                    lat:48.8482,lng:2.3373,
+                    dateFR:"1615–1627",dateEN:"1615–1627",
+                    textFR:"Construit pour Marie de Médicis qui voulait retrouver le style florentin de son enfance, le palais du Luxembourg accueille aujourd'hui le Sénat. Ses jardins, parmi les plus fréquentés de Paris, couvrent 23 hectares et sont un symbole de l'art des jardins à la française.",
+                    textEN:"Built for Marie de' Medici who wished to recapture the Florentine style of her childhood, the Luxembourg Palace now houses the Senate. Its gardens, among Paris's most visited, cover 23 hectares and are emblematic of the French formal garden tradition.",
+                    arr:"6e",style:"Renaissance franco-florentine",arch:"Salomon de Brosse"},
+
+                   {id:18,cat:"🏛️",catFR:"Civils & Institutions",catEN:"Civic & Institutions",
+                    fr:"Invalides",en:"Les Invalides",
+                    wt:"Hôtel des Invalides",wf:"Invalides-Dôme.jpg",
+                    lat:48.8554,lng:2.3129,
+                    dateFR:"1670–1708",dateEN:"1670–1708",
+                    textFR:"Fondé par Louis XIV pour accueillir les soldats blessés, les Invalides abritent sous leur célèbre dôme doré le tombeau de Napoléon Ier. Le complexe comprend le Musée de l'Armée, le musée des Plans-Reliefs et plusieurs édifices religieux, dont l'église Saint-Louis-des-Invalides.",
+                    textEN:"Founded by Louis XIV to house wounded soldiers, Les Invalides shelters under its famous gilded dome the tomb of Napoleon I. The complex includes the Army Museum, the Musée des Plans-Reliefs, and several religious buildings including the Church of Saint-Louis-des-Invalides.",
+                    arr:"7e",style:"Classique",arch:"Libéral Bruant & Jules Hardouin-Mansart"},
+
+                   {id:19,cat:"🏛️",catFR:"Civils & Institutions",catEN:"Civic & Institutions",
+                    fr:"Conciergerie",en:"Conciergerie",
+                    wt:"Conciergerie",wf:"Conciergerie_-_Sainte-Chapelle.jpg",
+                    lat:48.8555,lng:2.3467,
+                    dateFR:"XIVe s.",dateEN:"14th c.",
+                    textFR:"Ancien palais médiéval des rois capétiens, la Conciergerie devint une prison sous la Révolution. Marie-Antoinette y fut emprisonnée avant son exécution en 1793. Ses tours et sa salle des Gens d'armes constituent l'un des plus grands ensembles gothiques civils médiévaux de France.",
+                    textEN:"A former medieval royal palace, the Conciergerie became a prison during the Revolution. Marie Antoinette was held here before her execution in 1793. Its towers and the great Salle des Gens d'armes form one of France's largest surviving medieval civic Gothic ensembles.",
+                    arr:"1er",style:"Gothique",arch:"Enguerrand de Marigny"},
+
+                   {id:20,cat:"🏛️",catFR:"Civils & Institutions",catEN:"Civic & Institutions",
+                    fr:"Bourse de Commerce",en:"Bourse de Commerce",
+                    wt:"Bourse de commerce de Paris",wf:"Bourse_de_commerce_de_Paris.jpg",
+                    lat:48.8633,lng:2.3466,
+                    dateFR:"1763/2021",dateEN:"1763/2021",
+                    textFR:"Ancienne halle aux blés devenue Bourse de commerce au XIXe siècle, l'édifice circulaire coiffé d'une coupole de verre fut transformé en 2021 par l'architecte Tadao Ando pour accueillir la Collection Pinault, l'une des plus importantes collections d'art contemporain au monde.",
+                    textEN:"A former grain market converted into a commodities exchange in the 19th century, this circular building topped by a glass dome was transformed in 2021 by architect Tadao Ando to house the Pinault Collection, one of the world's most important contemporary art collections.",
+                    arr:"1er",style:"Classique / Contemporain",arch:"Nicolas Le Camus de Mézières / Tadao Ando"},
+
+                   // ═══ Culture & Arts ═══
+                   {id:21,cat:"🎭",catFR:"Culture & Arts",catEN:"Culture & Arts",
+                    fr:"Opéra Garnier",en:"Palais Garnier",
+                    wt:"Palais Garnier",wf:"Le_Palais_Garnier_Opera_Paris.jpg",
+                    lat:48.8720,lng:2.3318,
+                    dateFR:"1861–1875",dateEN:"1861–1875",
+                    textFR:"Chef-d'œuvre de l'éclectisme Second Empire, l'Opéra Garnier fut conçu par Charles Garnier pour Napoléon III. Son foyer habillé de marbres polychromes et de dorures, et son grand escalier monumental restent parmi les intérieurs les plus luxueux de Paris. Son lac souterrain inspira Gaston Leroux.",
+                    textEN:"A masterpiece of Second Empire eclecticism, the Opéra Garnier was designed by Charles Garnier for Napoleon III. Its foyer dressed in polychrome marbles and gilding, along with its grand ceremonial staircase, rank among Paris's most lavish interiors. Its underground lake inspired Gaston Leroux.",
+                    arr:"9e",style:"Éclectique Second Empire",arch:"Charles Garnier"},
+
+                   {id:22,cat:"🎭",catFR:"Culture & Arts",catEN:"Culture & Arts",
+                    fr:"Centre Pompidou",en:"Centre Pompidou",
+                    wt:"Centre national d'art et de culture Georges-Pompidou",wf:"Centre_Georges_Pompidou_Paris.jpg",wf:"https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Centre_Georges-Pompidou_-_panoramio_%2815%29.jpg/960px-Centre_Georges-Pompidou_-_panoramio_%2815%29.jpg",
+                    lat:48.8606,lng:2.3522,
+                    dateFR:"1971–1977",dateEN:"1971–1977",
+                    textFR:"Inauguré en 1977 par Valéry Giscard d'Estaing, le Centre Pompidou révolutionna l'architecture mondiale en exposant ses structures et canalisations colorées en façade. Il abrite le Musée national d'Art moderne, la plus grande collection d'art moderne et contemporain d'Europe.",
+                    textEN:"Inaugurated in 1977 by Valéry Giscard d'Estaing, the Centre Pompidou revolutionised world architecture by exposing its coloured structural and service elements on the facade. It houses the Musée national d'Art moderne, Europe's largest collection of modern and contemporary art.",
+                    arr:"4e",style:"High-tech",arch:"Renzo Piano & Richard Rogers"},
+
+                   {id:23,cat:"🎭",catFR:"Culture & Arts",catEN:"Culture & Arts",
+                    fr:"Opéra Bastille",en:"Opéra Bastille",
+                    wt:"Opéra Bastille",wf:"https://res.cloudinary.com/opera-national-de-paris/image/upload/w_768/v1563447998/visites/accueil-bastille.jpg",
+                    lat:48.8532,lng:2.3694,
+                    dateFR:"1984–1989",dateEN:"1984–1989",
+                    textFR:"Inauguré le 14 juillet 1989 pour le bicentenaire de la Révolution française, l'Opéra Bastille est la plus grande salle d'opéra de France avec 2 745 places. Conçu par Carlos Ott, il fut qualifié d'erreur architecturale par certains mais constitue l'une des scènes lyriques majeures d'Europe.",
+                    textEN:"Inaugurated on 14 July 1989 for the bicentenary of the French Revolution, the Opéra Bastille is France's largest opera house with 2,745 seats. Designed by Carlos Ott, it was criticised as an architectural error by some but is now one of Europe's foremost opera venues.",
+                    arr:"12e",style:"Contemporain",arch:"Carlos Ott"},
+
+                   {id:24,cat:"🎭",catFR:"Culture & Arts",catEN:"Culture & Arts",
+                    fr:"Comédie-Française",en:"Comédie-Française",
+                    wt:"Comédie-Française",wf:"Comedie-Francaise-exterior.jpg",
+                    lat:48.8636,lng:2.3370,
+                    dateFR:"1790",dateEN:"1790",
+                    textFR:"Fondée en 1680 par ordonnance de Louis XIV, la Comédie-Française est la plus ancienne compagnie théâtrale nationale du monde. Surnommée «La Maison de Molière», elle perpétue le répertoire classique de Molière, Racine et Corneille tout en accueillant des créations contemporaines.",
+                    textEN:"Founded in 1680 by decree of Louis XIV, the Comédie-Française is the world's oldest national theatre company. Nicknamed 'La Maison de Molière', it upholds the classical repertoire of Molière, Racine and Corneille while also staging contemporary productions.",
+                    arr:"1er",style:"Néoclassique",arch:"Victor Louis"},
+
+                   {id:25,cat:"🎭",catFR:"Culture & Arts",catEN:"Culture & Arts",
+                    fr:"Grand Palais",en:"Grand Palais",
+                    wt:"Grand Palais",wf:"Le_Grand_Palais.jpg",
+                    lat:48.8660,lng:2.3128,
+                    dateFR:"1897–1900",dateEN:"1897–1900",
+                    textFR:"Construit pour l'Exposition universelle de 1900, le Grand Palais est couronné d'une verrière de 8 500 m² en fer forgé, verre et acier. Après une longue restauration, il a rouvert pour les Jeux olympiques de Paris 2024 où il accueillit les épreuves d'escrime et de taekwondo.",
+                    textEN:"Built for the 1900 World's Fair, the Grand Palais is crowned by an 8,500 m² barrel-vaulted glass roof of iron and steel. After extensive restoration, it reopened for the Paris 2024 Olympics where it hosted the fencing and taekwondo events.",
+                    arr:"8e",style:"Beaux-Arts",arch:"Henri Deglane"},
+
+                   {id:26,cat:"🎭",catFR:"Culture & Arts",catEN:"Culture & Arts",
+                    fr:"Petit Palais",en:"Petit Palais",
+                    wt:"Petit Palais",wf:"Petit_Palais_from_bridge.jpg",
+                    lat:48.8657,lng:2.3139,
+                    dateFR:"1897–1900",dateEN:"1897–1900",
+                    textFR:"Construit en vis-à-vis du Grand Palais pour l'Exposition universelle de 1900, le Petit Palais abrite le Musée des Beaux-Arts de la Ville de Paris. Sa cour intérieure ornée d'une mosaïque et son jardin sont parmi les plus beaux exemples du style Beaux-Arts parisien.",
+                    textEN:"Built opposite the Grand Palais for the 1900 World's Fair, the Petit Palais houses the City of Paris Museum of Fine Arts. Its mosaic-adorned inner courtyard and garden are among the finest examples of the Parisian Beaux-Arts style.",
+                    arr:"8e",style:"Beaux-Arts",arch:"Charles Girault"},
+
+                   // ═══ Ponts & Places ═══
+                   {id:27,cat:"🌉",catFR:"Ponts & Places",catEN:"Bridges & Squares",
+                    fr:"Pont-Neuf",en:"Pont-Neuf",
+                    wt:"Pont Neuf",wf:"Pont-Neuf,_Paris_2009.jpg",
+                    lat:48.8572,lng:2.3412,
+                    dateFR:"1578–1607",dateEN:"1578–1607",
+                    textFR:"Malgré son nom, le Pont-Neuf est le plus ancien pont de Paris encore debout. Inauguré par Henri IV en 1607, il fut le premier pont sans maisons et le premier pavé de Paris. Ses 12 arches, sa statue équestre d'Henri IV et ses 381 mascarons en font un chef-d'œuvre de l'architecture de la Renaissance.",
+                    textEN:"Despite its name meaning 'New Bridge', Pont-Neuf is Paris's oldest surviving bridge. Inaugurated by Henri IV in 1607, it was the first bridge without houses and Paris's first paved thoroughfare. Its 12 arches, equestrian statue of Henri IV and 381 mascarons make it a Renaissance masterpiece.",
+                    arr:"1er/6e",style:"Renaissance",arch:"Baptiste Androuet du Cerceau"},
+
+                   {id:28,cat:"🌉",catFR:"Ponts & Places",catEN:"Bridges & Squares",
+                    fr:"Place des Vosges",en:"Place des Vosges",
+                    wt:"Place des Vosges",wf:"Place_des_Vosges2.jpg",
+                    lat:48.8554,lng:2.3625,
+                    dateFR:"1605–1612",dateEN:"1605–1612",
+                    textFR:"Plus ancienne place monumentale de Paris, la Place des Vosges fut inaugurée en 1612 pour les fiançailles de Louis XIII. Ses 36 pavillons de briques et de pierre à toits d'ardoise uniformes créent une harmonie architecturale unique. Victor Hugo y vécut de 1832 à 1848.",
+                    textEN:"Paris's oldest monumental square, the Place des Vosges was inaugurated in 1612 for the betrothal of Louis XIII. Its 36 uniform brick-and-stone pavilions with slate roofs create a unique architectural harmony. Victor Hugo lived here from 1832 to 1848.",
+                    arr:"3e/4e",style:"Louis XIII",arch:"Claude Chastillon"},
+
+                   {id:29,cat:"🌉",catFR:"Ponts & Places",catEN:"Bridges & Squares",
+                    fr:"Place de la Concorde",en:"Place de la Concorde",
+                    wt:"Place de la Concorde",wf:"Place_de_la_Concorde_Paris.jpg",
+                    lat:48.8656,lng:2.3212,
+                    dateFR:"1755–1775",dateEN:"1755–1775",
+                    textFR:"Plus grande place de Paris avec ses 8,6 hectares, la Concorde fut le lieu des exécutions sous la Révolution, dont celle de Louis XVI et Marie-Antoinette. Elle est dominée par l'obélisque de Louxor, don du vice-roi d'Égypte à Charles X, érigé en 1836.",
+                    textEN:"Paris's largest square at 8.6 hectares, the Concorde was the site of Revolutionary executions including those of Louis XVI and Marie Antoinette. It is dominated by the Luxor Obelisk, a gift from Egypt's viceroy to Charles X, erected in 1836.",
+                    arr:"8e",style:"Classique",arch:"Ange-Jacques Gabriel"},
+
+                   {id:30,cat:"🌉",catFR:"Ponts & Places",catEN:"Bridges & Squares",
+                    fr:"Pont Alexandre III",en:"Pont Alexandre III",
+                    wt:"Pont Alexandre-III",wf:"Alexander_3_bridge_Paris.jpg",
+                    lat:48.8637,lng:2.3132,
+                    dateFR:"1896–1900",dateEN:"1896–1900",
+                    textFR:"Considéré comme le plus beau pont de Paris, Alexandre III fut construit pour l'Exposition universelle de 1900 en symbole de l'alliance franco-russe. Ses candélabres, nymphes, lions ailés et sculptures Art Nouveau en font un bijou ornemental unique dont la travée unique de 107 mètres est remarquable.",
+                    textEN:"Considered Paris's most beautiful bridge, Alexandre III was built for the 1900 World's Fair as a symbol of the Franco-Russian alliance. Its candelabras, nymphs, winged lions and Art Nouveau sculptures make it a unique ornamental jewel; its single 107-metre span is remarkable.",
+                    arr:"7e/8e",style:"Art Nouveau",arch:"Résal & Alby"},
+
+                   // ═══ Autres incontournables ═══
+                   {id:31,cat:"🗼",catFR:"Emblématiques",catEN:"Iconic",
+                    fr:"Obélisque de Louxor",en:"Luxor Obelisk",
+                    wt:"Obélisque de la place de la Concorde",wf:"Obélisque_de_Louxor_-_Place_de_la_Concorde.jpg",
+                    lat:48.8656,lng:2.3212,
+                    dateFR:"XIXe s. av. J.-C.",dateEN:"19th c. BC",
+                    textFR:"Offert à la France par le vice-roi d'Égypte Méhémet Ali en 1830, l'obélisque de Louxor est l'un des deux qui ornaient l'entrée du temple de Ramsès II à Louxor. Pesant 227 tonnes, il fut transporté par bateau et dressé Place de la Concorde en 1836 par Lebas.",
+                    textEN:"Gifted to France by Egypt's viceroy Mehmet Ali in 1830, the Luxor Obelisk is one of two that flanked the entrance of Ramesses II's temple at Luxor. Weighing 227 tonnes, it was transported by boat and erected on the Place de la Concorde in 1836.",
+                    arr:"8e",style:"Antique égyptien",arch:"Époque de Ramsès II"},
+
+                   {id:32,cat:"🏛️",catFR:"Civils & Institutions",catEN:"Civic & Institutions",
+                    fr:"Bibliothèque nationale de France",en:"National Library of France",
+                    wt:"Bibliothèque nationale de France",wf:"BnF-Tolbiac-Façade-Bibliothèque_nationale_de_France_François-Mitterrand.jpg",
+                    lat:48.8338,lng:2.3781,
+                    dateFR:"1989–1998",dateEN:"1989–1998",
+                    textFR:"Dernier des Grands Travaux de François Mitterrand, la BnF François-Mitterrand fut conçue par Dominique Perrault et inaugurée en 1998. Ses quatre tours en forme de livres ouverts entourent un jardin intérieur de 12 000 m² planté d'arbres. Elle conserve plus de 40 millions de documents.",
+                    textEN:"The last of François Mitterrand's Grands Travaux, the BnF François-Mitterrand was designed by Dominique Perrault and inaugurated in 1998. Its four open-book-shaped towers surround a 12,000 m² inner garden planted with trees. It holds over 40 million documents.",
+                    arr:"13e",style:"Contemporain",arch:"Dominique Perrault"},
+
+                   {id:33,cat:"🎭",catFR:"Culture & Arts",catEN:"Culture & Arts",
+                    fr:"Musée d'Orsay",en:"Musée d'Orsay",
+                    wt:"Musée d'Orsay",wf:"Musée_d'Orsay,_North-West_view,_Paris_2013.jpg",wf:"https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Musée_d%27Orsay%2C_North-West_view%2C_Paris_7e_140402.jpg/960px-Musée_d%27Orsay%2C_North-West_view%2C_Paris_7e_140402.jpg",
+                    lat:48.8600,lng:2.3266,
+                    dateFR:"1897–1986",dateEN:"1897–1986",
+                    textFR:"Ancienne gare ferroviaire construite pour l'Exposition universelle de 1900, reconvertie en musée en 1986 par Gae Aulenti. Il abrite la plus grande collection impressionniste au monde avec des chefs-d'œuvre de Monet, Renoir, Degas, Van Gogh et Cézanne.",
+                    textEN:"A former railway terminus built for the 1900 World's Fair, converted into a museum in 1986 by Gae Aulenti. It houses the world's largest Impressionist collection with masterworks by Monet, Renoir, Degas, Van Gogh and Cézanne.",
+                    arr:"7e",style:"Beaux-Arts / Contemporain",arch:"Victor Laloux / Gae Aulenti"},
+
+                   {id:34,cat:"🎭",catFR:"Culture & Arts",catEN:"Culture & Arts",
+                    fr:"Musée Rodin",en:"Musée Rodin",
+                    wt:"Musée Rodin",wf:"Musee_Rodin_1.jpg",
+                    lat:48.8555,lng:2.3157,
+                    dateFR:"1919",dateEN:"1919",
+                    textFR:"Installé dans l'Hôtel Biron, résidence de Rodin de 1908 à sa mort en 1917, le musée expose dans ses jardins et ses salons les chefs-d'œuvre du sculpteur : Le Penseur, Les Bourgeois de Calais, La Porte de l'Enfer. Son jardin à la française est l'un des plus beaux parcs parisiens.",
+                    textEN:"Housed in the Hôtel Biron, Rodin's residence from 1908 until his death in 1917, the museum displays the sculptor's masterworks indoors and in its gardens: The Thinker, The Burghers of Calais, The Gates of Hell. Its formal French garden is one of Paris's finest parks.",
+                    arr:"7e",style:"Classique",arch:"Jean Aubert"},
+
+                   {id:35,cat:"⛪",catFR:"Religieux",catEN:"Religious",
+                    fr:"Saint-Chapelle du Château de Vincennes",en:"Vincennes Sainte-Chapelle",
+                    wt:"Sainte-Chapelle de Vincennes",wf:"Vincennes_sainte_chapelle.jpg",
+                    lat:48.8443,lng:2.4350,
+                    dateFR:"1379–1552",dateEN:"1379–1552",
+                    textFR:"Chapelle royale construite dans l'enceinte du château de Vincennes par les rois Charles V et Henri II, elle constitue l'un des derniers exemples du gothique flamboyant royal en France. Ses vitraux Renaissance du XVIe siècle sont parmi les plus beaux de la région parisienne.",
+                    textEN:"A royal chapel built within Vincennes castle by Kings Charles V and Henri II, it is one of the last examples of royal Flamboyant Gothic in France. Its 16th-century Renaissance stained glass windows are among the finest in the Paris region.",
+                    arr:"Val-de-Marne",style:"Gothique flamboyant",arch:"Inconnu"},
+
+                   {id:36,cat:"🏛️",catFR:"Civils & Institutions",catEN:"Civic & Institutions",
+                    fr:"Tour Montparnasse",en:"Montparnasse Tower",
+                    wt:"Tour Maine-Montparnasse",wf:"Tour_Maine_Montparnasse.jpg",
+                    lat:48.8422,lng:2.3219,
+                    dateFR:"1969–1973",dateEN:"1969–1973",
+                    textFR:"Seul gratte-ciel du cœur de Paris, la Tour Montparnasse culmine à 210 mètres et fut pendant 40 ans la plus haute tour de France. Sa construction en 1973 entraîna l'adoption d'une loi interdisant les immeubles de plus de 7 étages dans Paris intra-muros. Son panorama à 360° du 56e étage est époustouflant.",
+                    textEN:"Paris's only skyscraper in the inner city, Montparnasse Tower rises 210 metres and was France's tallest tower for 40 years. Its construction in 1973 prompted a law banning buildings over 7 storeys within Paris. Its 360° panorama from the 56th floor is breathtaking.",
+                    arr:"15e",style:"Moderniste",arch:"Eugène Beaudouin"},
+
+                   {id:37,cat:"🌉",catFR:"Ponts & Places",catEN:"Bridges & Squares",
+                    fr:"Pont des Arts",en:"Pont des Arts",
+                    wt:"Pont des Arts",wf:"Pont_des_Arts_with_padlocks.jpg",
+                    lat:48.8583,lng:2.3375,
+                    dateFR:"1802–1804",dateEN:"1802–1804",
+                    textFR:"Premier pont métallique de Paris, le Pont des Arts était célèbre pour les cadenas d'amour qui en ornaient les grilles jusqu'en 2015. Sa passerelle piétonne relie le Louvre à l'Institut de France et offre l'une des vues les plus romantiques sur la Seine et ses berges.",
+                    textEN:"Paris's first metal bridge, the Pont des Arts was famous for the love padlocks that adorned its railings until 2015. Its pedestrian footbridge links the Louvre to the Institut de France and offers one of the most romantic views over the Seine and its banks.",
+                    arr:"1er/6e",style:"Métal",arch:"Louis-Alexandre de Cessart"},
+
+                   {id:38,cat:"🏛️",catFR:"Civils & Institutions",catEN:"Civic & Institutions",
+                    fr:"La Défense – Grande Arche",en:"Grande Arche de la Défense",
+                    wt:"Grande Arche",wf:"https://upload.wikimedia.org/wikipedia/fr/thumb/1/10/Grande_Arche_Janvier_2023.jpeg/960px-Grande_Arche_Janvier_2023.jpeg",
+                    lat:48.8926,lng:2.2363,
+                    dateFR:"1982–1989",dateEN:"1982–1989",
+                    textFR:"Cube de marbre blanc de 110 mètres de côté, la Grande Arche est le monument terminal de l'axe historique de Paris (Louvre – Tuileries – Champs-Élysées – Étoile). Inaugurée en 1989 pour le bicentenaire de la Révolution, elle abrite des bureaux et son toit offre un panorama unique.",
+                    textEN:"A 110-metre cube of white marble, the Grande Arche is the terminal monument of Paris's historic axis (Louvre – Tuileries – Champs-Élysées – Étoile). Inaugurated in 1989 for the Revolution's bicentenary, it houses offices and its roof offers a unique panorama.",
+                    arr:"La Défense",style:"Contemporain",arch:"Johan Otto von Spreckelsen"},
+
+                   {id:39,cat:"⛪",catFR:"Religieux",catEN:"Religious",
+                    fr:"Mosquée de Paris",en:"Paris Grand Mosque",
+                    wt:"Grande Mosquée de Paris",wf:"Grande_Mosquée_de_Paris.jpg",
+                    lat:48.8448,lng:2.3538,
+                    dateFR:"1922–1926",dateEN:"1922–1926",
+                    textFR:"Plus grande mosquée de France avec sa capacité de 10 000 fidèles, la Mosquée de Paris fut inaugurée en 1926 en hommage aux 100 000 soldats musulmans morts pour la France lors de la Première Guerre mondiale. Son minaret de 26 mètres et ses jardins andalous en font un lieu de paix unique.",
+                    textEN:"France's largest mosque with a capacity of 10,000 worshippers, the Paris Mosque was inaugurated in 1926 as a tribute to the 100,000 Muslim soldiers who died for France in World War I. Its 26-metre minaret and Andalusian gardens make it a unique place of peace.",
+                    arr:"5e",style:"Hispano-mauresque",arch:"Robert Fournez"},
+
+                   {id:40,cat:"🎭",catFR:"Culture & Arts",catEN:"Culture & Arts",
+                    fr:"Fondation Louis Vuitton",en:"Louis Vuitton Foundation",
+                    wt:"Fondation Louis Vuitton",wf:"Fondation_Louis_Vuitton_-_1.jpg",wf:"https://upload.wikimedia.org/wikipedia/fr/thumb/1/14/2014-10-26_Fondation_d%27entreprise_Louis_Vuitton_week-end_inaugural_%28vue_du_jardin_d%27acclimatation%29.JPG/960px-2014-10-26_Fondation_d%27entreprise_Louis_Vuitton_week-end_inaugural_%28vue_du_jardin_d%27acclimatation%29.JPG",
+                    lat:48.8766,lng:2.2545,
+                    dateFR:"2006–2014",dateEN:"2006–2014",
+                    textFR:"Conçue par Frank Gehry au Bois de Boulogne, la Fondation Louis Vuitton est une icône architecturale du XXIe siècle. Ses «voiles» de verre rappelant des ailes d'oiseau ou un voilier abritent une collection d'art contemporain d'envergure mondiale. Elle a accueilli l'exposition Monet – Mitchell en 2022.",
+                    textEN:"Designed by Frank Gehry in the Bois de Boulogne, the Louis Vuitton Foundation is an iconic 21st-century landmark. Its glass 'sails' evoking bird wings or a sailing vessel house a collection of world-class contemporary art. It hosted the Monet – Mitchell exhibition in 2022.",
+                    arr:"16e",style:"Déconstructivisme",arch:"Frank Gehry"},
+                 ];
+
+// ═══════════════════════════════════════════════════════
+//  SETTINGS APPS (9 catégories)
+// ═══════════════════════════════════════════════════════
+const APPS_SETTINGS = [
+  {title:"Géographie",apps:[
+    {n:"France GQ",id:"6770453028"},{n:"Europe GQ",id:"6770458593"},
+    {n:"Amér.Nord",id:"6770566450"},{n:"Amér.Sud",id:"6770580053"},
+    {n:"Asie GQ",id:"6770857576"},{n:"Afrique",id:"6770836826"},
+    {n:"Moyen Orient",id:"6770848617"},{n:"Europe HUE",id:"6770826067"},
+    {n:"Capitales",id:"6761421276"},{n:"Pays UE",id:"6762346365"},
+    {n:"États-Unis",id:"6762370541"},{n:"Îles Monde",id:"6767810270"},
+    {n:"Détroits",id:"6762594201"},{n:"Mers Océans",id:"6762598304"},
+  ]},
+  {title:"Histoire France",apps:[
+    {n:"Rois",id:"6761322546"},{n:"Présidents FR",id:"6761324444"},
+    {n:"Maréchaux",id:"6761374601"},{n:"Académie fr.",id:"6761334922"},
+    {n:"Panthéon",id:"6761335268"},{n:"Légion",id:"6768320574"},
+    {n:"Basilique",id:"6761709149"},{n:"Sénat",id:"6761363063"},
+    {n:"Assemblée",id:"6761361079"},{n:"Conquêtes",id:"6762542395"},
+  ]},
+  {title:"Histoire Monde",apps:[
+    {n:"Nobels",id:"6763569148"},{n:"Peintres",id:"6768068634"},
+    {n:"Architectes",id:"6770302783"},{n:"Athlètes",id:"6770102339"},
+    {n:"Explorateurs",id:"6768003416"},{n:"Familles Roy.",id:"6762098486"},
+    {n:"Dynasties Roy.",id:"6762208827"},{n:"Dyn. Chinoises",id:"6762522136"},
+    {n:"Dyn. Russes",id:"6762452564"},{n:"Présidents US",id:"6762256169"},
+    {n:"Leaders Eur.",id:"6762263227"},{n:"Institutions",id:"6767492967"},
+    {n:"Machines Leg.",id:"6767273597"},{n:"Histoire Info",id:"6766260978"},
+    {n:"Micro-Info",id:"6766261703"},
+  ]},
+  {title:"Culture",apps:[
+    {n:"Compositeurs",id:"6761656628"},{n:"Auteurs BD",id:"6767135193"},
+    {n:"Comédie Fr.",id:"6761993002"},{n:"Institut Fr.",id:"6761769529"},
+    {n:"Arbres Fr.",id:"6761685637"},{n:"Iconic Covers",id:"6762006105"},
+    {n:"Légendes Pop",id:"6769653710"},{n:"Rosiers",id:"6773255479"},
+  ]},
+  {title:"Paris",apps:[
+    {n:"Musées",id:"6760890465"},{n:"Théâtres",id:"6760929391"},
+    {n:"Scènes",id:"6761293938"},{n:"Cimetières",id:"6760751055"},
+    {n:"Hôtels Top",id:"6763507194"},
+  ]},
+  {title:"Monuments",apps:[
+    {n:"Aéroports",id:"6764087562"},{n:"Gratte-Ciels",id:"6763857843"},
+    {n:"Paquebots",id:"6763076110"},{n:"Avions",id:"6763069304"},
+    {n:"Voitures",id:"6763071567"},{n:"Trains",id:"6762632868"},
+    {n:"Ponts",id:"6762618424"},{n:"Châteaux Loire",id:"6762823383"},
+  ]},
+  {title:"Jeux",apps:[
+    {n:"Solitaire",id:"6769310796"},{n:"Tuiles Num.",id:"6768574161"},
+    {n:"Bataille Nav.",id:"6762091681"},{n:"Dames",id:"6762076518"},
+    {n:"Flip Board",id:"6762077646"},{n:"ColorCode",id:"6762558969"},
+    {n:"Lexigo",id:"6762552826"},{n:"Toi Ou Moi",id:"1475884625"},
+  ]},
+  {title:"Kids",apps:[
+    {n:"Coloriage",id:"6773000126"},{n:"Mémo Animaux",id:"6773621753"},
+    {n:"Petit Bilingue",id:"6773656650"},{n:"Dinosaures",id:"6773037110"},
+    {n:"Animaux",id:"6772937635"},{n:"Lettres",id:"6772548541"},
+    {n:"Chiffres",id:"6772546976"},{n:"Mahjong",id:"6772468506"},
+  ]},
+  {title:"Utilitaires",apps:[
+    {n:"FreshFood",id:"6759219383"},{n:"Cave",id:"6760126279"},
+    {n:"Restos",id:"6760617965"},{n:"MediSafe",id:"6761271324"},
+    {n:"Belote",id:"1483084001"},{n:"Tarots",id:"1481989301"},
+  ]},
+];
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let lang = 'fr';
+let activeTab = 0;
+let currentMon = null;
+let detailOpen = false;
+// URLs Wikimedia pré-calculées (400px) — chargées immédiatement au démarrage
+const PHOTO_URLS = {
+  1:  'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Eiffel_Tower%2C_Paris.jpg/500px-Eiffel_Tower%2C_Paris.jpg',
+  2:  'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Arc_de_Triomphe_Paris.jpg/500px-Arc_de_Triomphe_Paris.jpg',
+  3:  'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Sacre_Coeur_Montmartre.jpg/500px-Sacre_Coeur_Montmartre.jpg',
+  4:  'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Colonne_Vendome.jpg/500px-Colonne_Vendome.jpg',
+  5:  'https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Notre-Dame_de_Paris_2013-07-24.jpg/500px-Notre-Dame_de_Paris_2013-07-24.jpg',
+  6:  'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Sainte-Chapelle_de_Paris_vue_du_Palais_de_justice.JPG/500px-Sainte-Chapelle_de_Paris_vue_du_Palais_de_justice.JPG',
+  7:  'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/Pantheon_of_Paris_007.JPG/500px-Pantheon_of_Paris_007.JPG',
+  8:  'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Eglise_de_la_Madeleine_2024.jpg/500px-Eglise_de_la_Madeleine_2024.jpg',
+  // 9 : wf à compléter sur Commons
+  10: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/%C3%89glise_Saint-Sulpice_-_Fa%C3%A7ade_-_F%C3%A9vrier_2025.jpg/500px-%C3%89glise_Saint-Sulpice_-_Fa%C3%A7ade_-_F%C3%A9vrier_2025.jpg',
+  11: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Louvre_Museum_Wikimedia_Commons.jpg/500px-Louvre_Museum_Wikimedia_Commons.jpg',
+  12: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Palais_Royal_Paris.jpg/500px-Palais_Royal_Paris.jpg',
+  // 13 : wf à compléter sur Commons
+  14: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/H%C3%B4tel_de_Ville_de_Paris.jpg/500px-H%C3%B4tel_de_Ville_de_Paris.jpg',
+  15: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Chateau_de_Vincennes_-_panoramio.jpg/500px-Chateau_de_Vincennes_-_panoramio.jpg',
+  16: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Fa%C3%A7ade_Palais_Bourbon_3.jpg/500px-Fa%C3%A7ade_Palais_Bourbon_3.jpg',
+  17: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Palais_du_Luxembourg_Paris.jpg/500px-Palais_du_Luxembourg_Paris.jpg',
+  18: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Invalides_aerial_view.jpg/500px-Invalides_aerial_view.jpg',
+  19: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Conciergerie_Paris.jpg/500px-Conciergerie_Paris.jpg',
+  20: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Bourse_de_commerce_de_Paris.jpg/500px-Bourse_de_commerce_de_Paris.jpg',
+  21: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Paris_Opera_full_frontal_architecture%2C_May_2009.jpg/500px-Paris_Opera_full_frontal_architecture%2C_May_2009.jpg',
+  // 22 : wf à compléter sur Commons
+  // 23 : wf à compléter sur Commons
+  24: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Com%C3%A9die_Fran%C3%A7aise.jpg/500px-Com%C3%A9die_Fran%C3%A7aise.jpg',
+  25: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Grand_Palais_Paris.jpg/500px-Grand_Palais_Paris.jpg',
+  26: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Le_Petit_Palais.jpg/500px-Le_Petit_Palais.jpg',
+  27: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Pont_Neuf_Paris.jpg/500px-Pont_Neuf_Paris.jpg',
+  28: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Place_des_Vosges_Paris.jpg/500px-Place_des_Vosges_Paris.jpg',
+  29: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Paris_-_Place_de_la_Concorde.jpg/500px-Paris_-_Place_de_la_Concorde.jpg',
+  30: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Pont_Alexandre_III_%282%29.jpg/500px-Pont_Alexandre_III_%282%29.jpg',
+  31: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Ob%C3%A9lisque_Louqsor_Concorde_a.jpg/500px-Ob%C3%A9lisque_Louqsor_Concorde_a.jpg',
+  32: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Biblioth%C3%A8que_Mitterrand_Mai_2022.jpg/500px-Biblioth%C3%A8que_Mitterrand_Mai_2022.jpg',
+  // 33 : wf à compléter sur Commons
+  34: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Le_mus%C3%A9e_Rodin.jpg/500px-Le_mus%C3%A9e_Rodin.jpg',
+  35: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Sainte_Chapelle_Ch%C3%A2teau_Vincennes_-_Vincennes_%28FR94%29_-_2020-10-10_-_17.jpg/500px-Sainte_Chapelle_Ch%C3%A2teau_Vincennes_-_Vincennes_%28FR94%29_-_2020-10-10_-_17.jpg',
+  36: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Tour_montparnasse_view_arc.jpg/500px-Tour_montparnasse_view_arc.jpg',
+  37: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Pont_des_Arts_-_Paris.jpg/500px-Pont_des_Arts_-_Paris.jpg',
+  // 38 : wf à compléter sur Commons
+  39: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Grande_Mosquee_de_Paris.jpg/500px-Grande_Mosquee_de_Paris.jpg',
+  // 40 : wf à compléter sur Commons
+};
+// urlCache : clé id → URL directe (liste+quiz), clé 'full_'+id → base64 ou URL (détail)
+let urlCache = {};
+let mapInit = false;
+let leafMap = null;
+let quizState = null;
+let searchQ = '';
+
+const T = {
+  fr:{
+    title:"Monuments de Paris",
+    liste:"Liste",carte:"Carte",quiz:"Quiz",
+    search:"Rechercher…",
+    settings:"Nos autres apps",close:"Fermer",
+    fontSize:"Taille police",
+    quizQ_arr:"Dans quel arrondissement se trouve",
+    quizQ_arch:"Qui a conçu",
+    quizQ_style:"Quel est le style architectural de",
+    quizQ_date:"En quelle période fut construit(e)",
+    score:"Score",question:"Question",
+    correct:"Bonne réponse !",wrong:"Mauvaise réponse",
+    next:"Suivant →",restart:"Rejouer",
+    result:"Résultat final",
+    loadPhoto:"📷 Charger la photo",
+    loading:"Chargement…",
+    photoNA:"Photo non disponible",
+    itinerary:"🗺️ S'y rendre",
+    noResult:"Aucun résultat",
+    apps:"Nos autres applis",
+  },
+  en:{
+    title:"Paris Monuments",
+    liste:"List",carte:"Map",quiz:"Quiz",
+    search:"Search…",
+    settings:"Our other apps",close:"Close",
+    fontSize:"Font size",
+    quizQ_arr:"In which arrondissement is",
+    quizQ_arch:"Who designed",
+    quizQ_style:"What is the architectural style of",
+    quizQ_date:"When was",
+    score:"Score",question:"Question",
+    correct:"Correct!",wrong:"Wrong answer",
+    next:"Next →",restart:"Play again",
+    result:"Final score",
+    loadPhoto:"📷 Load photo",
+    loading:"Loading…",
+    photoNA:"Photo unavailable",
+    itinerary:"🗺️ Get directions",
+    noResult:"No results",
+    apps:"Our other apps",
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════
+function t(k){return T[lang][k]||k}
+
+function toggleLang(){
+  lang = lang==='fr'?'en':'fr';
+  document.getElementById('btnLang').textContent = lang==='fr'?'🇬🇧':'🇫🇷';
+  document.getElementById('btnLangD').textContent = lang==='fr'?'🇬🇧':'🇫🇷';
+  document.getElementById('hTitle').textContent = t('title');
+  document.getElementById('tliste').textContent = t('liste');
+  document.getElementById('tcarte').textContent = t('carte');
+  document.getElementById('tquiz').textContent = t('quiz');
+  document.getElementById('sTitle').textContent = t('settings');
+  document.getElementById('searchInput').placeholder = t('search');
+  if(detailOpen && currentMon) renderDetail(currentMon,true);
+  else renderList();
+}
+
+// ═══════════════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════════════
+function switchTab(i){
+  activeTab=i;
+  [0,1,2].forEach(j=>{
+    document.getElementById('tab'+j).classList.toggle('active',j===i);
+    document.getElementById('tc'+j).classList.toggle('active',j===i);
+  });
+  document.getElementById('searchWrap').style.display = i===0?'block':'none';
+  document.getElementById('mainScroll').style.overflowY = i===1?'hidden':'auto';
+  if(i===1) initMap();
+  if(i===2) renderQuiz();
+}
+
+// ═══════════════════════════════════════════════════════
+//  LISTE
+// ═══════════════════════════════════════════════════════
+function filtered(){
+  if(!searchQ) return MONUMENTS;
+  const q=searchQ.toLowerCase();
+  return MONUMENTS.filter(m=>
+    m.fr.toLowerCase().includes(q)||
+    m.en.toLowerCase().includes(q)||
+    (lang==='fr'?m.catFR:m.catEN).toLowerCase().includes(q)||
+    m.arr.toLowerCase().includes(q)
+  );
+}
+
+function renderList(){
+  const list=filtered();
+  const cont=document.getElementById('monList');
+  if(!list.length){
+    cont.innerHTML=`<div style="padding:30px;text-align:center;font-family:'Cormorant Garamond',serif;color:var(--muted)">${t('noResult')}</div>`;
+    return;
+  }
+  const byCat={};
+  list.forEach(m=>{
+    const k=lang==='fr'?m.catFR:m.catEN;
+    if(!byCat[k]) byCat[k]={emoji:m.cat,items:[]};
+    byCat[k].items.push(m);
+  });
+  let html='';
+  for(const [catName,obj] of Object.entries(byCat)){
+    html+=`<div class="cat-label">${obj.emoji} ${catName}</div>`;
+    obj.items.forEach(m=>{
+      const name=lang==='fr'?m.fr:m.en;
+      const sub=m.arch+' · '+m.arr;
+      const cached=urlCache[m.id];
+      const imgHtml=cached
+        ?`<div class="mon-thumb"><img src="${cached}" loading="lazy" alt="${name}"></div>`
+        :`<div class="mon-thumb" id="thumb${m.id}">${m.cat}</div>`;
+      html+=`<div class="mon-item" onclick="openDetail(${m.id})">
+        ${imgHtml}
+        <div class="mon-info">
+          <div class="mon-name">${name}</div>
+          <div class="mon-sub">${sub}</div>
+        </div>
+        <div class="mon-arr">›</div>
+      </div>`;
+    });
+  }
+  cont.innerHTML=html;
+  // Lazy load thumbs
+  list.forEach(m=>{ if(!urlCache[m.id]) lazyThumb(m); });
+}
+
+function lazyThumb(m){
+  // PHOTO_URLS prioritaire
+  if(PHOTO_URLS[m.id]){
+    urlCache[m.id]=PHOTO_URLS[m.id];
+    const el=document.getElementById('thumb'+m.id);
+    if(el) el.innerHTML=`<img src="${PHOTO_URLS[m.id]}" loading="lazy">`;
+    return;
+  }
+  // wf est une URL complète
+  if(m.wf && m.wf.startsWith('http')){
+    urlCache[m.id]=m.wf;
+    const el=document.getElementById('thumb'+m.id);
+    if(el) el.innerHTML=`<img src="${m.wf}" loading="lazy">`;
+    return;
+  }
+  if(typeof Capacitor==='undefined') return;
+  Capacitor.Plugins.CapacitorHttp.get({
+    url:`https://fr.wikipedia.org/w/api.php?action=query&titles=File:${encodeURIComponent(m.wf)}&prop=pageimages&pithumbsize=100&format=json&origin=*`,
+    headers:{}
+  }).then(r=>{
+    const pages=JSON.parse(r.data).query.pages;
+    const p=Object.values(pages)[0];
+    if(p&&p.thumbnail){
+      const src=p.thumbnail.source;
+      urlCache[m.id]=src;
+      const el=document.getElementById('thumb'+m.id);
+      if(el) el.innerHTML=`<img src="${src}" loading="lazy">`;
+    }
+  }).catch(()=>{});
+}
+
+// ═══════════════════════════════════════════════════════
+//  DETAIL
+// ═══════════════════════════════════════════════════════
+function openDetail(id){
+  currentMon=MONUMENTS.find(m=>m.id===id);
+  if(!currentMon) return;
+  detailOpen=true;
+  renderDetail(currentMon,false);
+  document.getElementById('detail').classList.add('open');
+}
+
+function closeDetail(){
+  document.getElementById('detail').classList.remove('open');
+  detailOpen=false;
+  currentMon=null;
+}
+
+function renderDetail(m,langSwitch){
+  const name=lang==='fr'?m.fr:m.en;
+  const catName=lang==='fr'?m.catFR:m.catEN;
+  const text=lang==='fr'?m.textFR:m.textEN;
+  const dateTxt=lang==='fr'?m.dateFR:m.dateEN;
+
+  document.getElementById('dTitle').textContent=name;
+
+  // Image area
+  let imgHtml='';
+  if(urlCache['full_'+m.id]){
+    imgHtml=`<div class="detail-img-wrap"><img src="${urlCache['full_'+m.id]}" alt="${name}" id="dImg${m.id}"></div>`;
+  } else {
+    imgHtml=`<div class="detail-img-placeholder" id="dImgPh${m.id}">
+      <span>${m.cat}</span>
+      <button class="btn-load-photo" onclick="loadDetailPhoto(${m.id})">${t('loadPhoto')}</button>
+    </div>`;
+  }
+
+  document.getElementById('detailBody').innerHTML=`
+    ${imgHtml}
+    <span class="detail-cat-badge">${m.cat} ${catName}</span>
+    <div class="detail-main-title">${name}</div>
+    <div class="detail-dates">${dateTxt}</div>
+    <div class="detail-text">${text}</div>
+    <div class="detail-sep"></div>
+    <div class="detail-facts">
+      <div class="fact-row"><span class="fact-label">${t('architect')}</span><span class="fact-val">${m.arch}</span></div>
+      <div class="fact-row"><span class="fact-label">${t('style')}</span><span class="fact-val">${m.style}</span></div>
+      <div class="fact-row"><span class="fact-label">${t('district')}</span><span class="fact-val">${m.arr}</span></div>
+      <div class="fact-row"><span class="fact-label">${t('period')}</span><span class="fact-val">${dateTxt}</span></div>
+    </div>
+    <button class="btn-itinerary" onclick="openItinerary(${m.lat},${m.lng},'${(lang==='fr'?m.fr:m.en).replace(/'/g,"\\'")}')">
+      ${t('itinerary')}
+    </button>
+  `;
+
+  // Auto-load à l'ouverture de la fiche
+  if(!urlCache['full_'+m.id]){
+    loadDetailPhoto(m.id);
+  }
+}
+
+function openItinerary(lat,lng,name){
+  // iOS : ouvre Plans (Apple Maps) avec itinéraire depuis position actuelle
+  const appleUrl=`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=w&t=m`;
+  const googleUrl=`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`;
+  // Tente Apple Maps, fallback Google Maps
+  const a=document.createElement('a');
+  a.href=appleUrl;
+  a.style.display='none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  // Fallback web si Apple Maps non dispo (ex: simulateur)
+  setTimeout(()=>{
+    if(document.hidden===false){
+      window.open(googleUrl,'_blank');
+    }
+  },1500);
+}
+
+function loadDetailPhoto(id){
+  const m=MONUMENTS.find(x=>x.id===id);
+  if(!m) return;
+
+  // URL pré-calculée dans PHOTO_URLS → directement img.src
+  const preUrl = PHOTO_URLS[id] || PHOTO_URLS[+id];
+  if(preUrl){
+    urlCache['full_'+id]=preUrl;
+    refreshDetailImg(m,preUrl);
+    return;
+  }
+
+  // wf est une URL complète → directement img.src
+  if(m.wf && m.wf.startsWith('http')){
+    urlCache['full_'+id]=m.wf;
+    refreshDetailImg(m,m.wf);
+    return;
+  }
+
+  // Pas d'URL → CapacitorHttp API Wikipedia
+  const ph=document.getElementById('dImgPh'+id);
+  if(ph) ph.innerHTML=`<span>${m.cat}</span><div class="spinner"></div>`;
+  if(typeof Capacitor==='undefined'){
+    if(ph) ph.innerHTML=`<span style="font-family:'Cormorant Garamond',serif;color:var(--muted);font-size:14px">${t('photoNA')}</span>`;
+    return;
+  }
+  Capacitor.Plugins.CapacitorHttp.get({
+    url:`https://fr.wikipedia.org/w/api.php?action=query&titles=File:${encodeURIComponent(m.wf)}&prop=pageimages&pithumbsize=800&format=json&origin=*`,
+    headers:{}
+  }).then(r=>{
+    const pages=JSON.parse(r.data).query.pages;
+    const p=Object.values(pages)[0];
+    if(!p||!p.thumbnail) throw new Error('no thumb');
+    const src=p.thumbnail.source;
+    urlCache['full_'+id]=src;
+    if(detailOpen&&currentMon&&currentMon.id===id) refreshDetailImg(m,src);
+  }).catch(()=>{
+    const ph2=document.getElementById('dImgPh'+id);
+    if(ph2) ph2.innerHTML=`<span style="font-family:'Cormorant Garamond',serif;color:var(--muted);font-size:14px">${t('photoNA')}</span>`;
+  });
+}
+
+function refreshDetailImg(m,src){
+  if(!detailOpen||!currentMon||currentMon.id!==m.id) return;
+  const ph=document.getElementById('dImgPh'+m.id);
+  if(ph){
+    const wrap=document.createElement('div');
+    wrap.className='detail-img-wrap';
+    const img=document.createElement('img');
+    img.src=src;img.alt=lang==='fr'?m.fr:m.en;img.id='dImg'+m.id;
+    wrap.appendChild(img);
+    ph.replaceWith(wrap);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  SEARCH
+// ═══════════════════════════════════════════════════════
+function onSearch(v){
+  searchQ=v;
+  const cl=document.getElementById('searchClear');
+  cl.style.display=v?'flex':'none';
+  renderList();
+}
+function clearSearch(){
+  document.getElementById('searchInput').value='';
+  onSearch('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  CARTE
+// ═══════════════════════════════════════════════════════
+function initMap(){
+  if(mapInit) return;
+  mapInit=true;
+
+  // Fix Leaflet icon path
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+    iconUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+    shadowUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  });
+
+  leafMap=L.map('map',{zoomControl:true}).setView([48.857,2.347],13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap',maxZoom:19
+  }).addTo(leafMap);
+
+  MONUMENTS.forEach(m=>{
+    const name=lang==='fr'?m.fr:m.en;
+    const icon=L.divIcon({
+      html:`<div style="font-size:24px;line-height:1">${m.cat}</div>`,
+      className:'',iconSize:[30,30],iconAnchor:[15,15]
+    });
+    const marker=L.marker([m.lat,m.lng],{icon}).addTo(leafMap);
+    marker.bindPopup(`<div class="popup-name">${name}</div><div>${m.arr}</div><div class="popup-link" onclick="openDetail(${m.id})">› Voir la fiche</div>`);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  QUIZ
+// ═══════════════════════════════════════════════════════
+const QUIZ_TYPES=['arr','arch','style'];
+
+function shuffle(a){return a.sort(()=>Math.random()-.5)}
+
+function initQuiz(){
+  const pool=shuffle([...MONUMENTS]).slice(0,20);
+  quizState={
+    pool,idx:0,score:0,answered:false,
+    total:pool.length,
+  };
+  renderQuiz();
+}
+
+function renderQuiz(){
+  if(!quizState){initQuiz();return;}
+  const s=quizState;
+  const wrap=document.getElementById('quizWrap');
+  if(s.idx>=s.total){
+    // Résultat
+    const pct=Math.round(s.score/s.total*100);
+    const emoji=pct>=80?'🏆':pct>=50?'👍':'💪';
+    wrap.innerHTML=`<div class="quiz-result">
+      <div class="quiz-result-score">${emoji}</div>
+      <div class="quiz-result-score">${s.score}/${s.total}</div>
+      <div class="quiz-result-text">${pct}%</div>
+      <button class="quiz-restart" onclick="initQuiz()">${t('restart')}</button>
+    </div>`;
+    return;
+  }
+
+  const m=s.pool[s.idx];
+  const qtype=QUIZ_TYPES[s.idx%QUIZ_TYPES.length];
+  let questionTxt='';let correctAns='';let wrongPool=[];
+
+  if(qtype==='arr'){
+    const name=lang==='fr'?m.fr:m.en;
+    questionTxt=`${t('quizQ_arr')} ${name} ?`;
+    correctAns=m.arr;
+    wrongPool=MONUMENTS.filter(x=>x.arr!==m.arr).map(x=>x.arr);
+  } else if(qtype==='arch'){
+    const name=lang==='fr'?m.fr:m.en;
+    questionTxt=`${t('quizQ_arch')} ${name} ?`;
+    correctAns=m.arch;
+    wrongPool=MONUMENTS.filter(x=>x.arch!==m.arch).map(x=>x.arch);
+  } else {
+    const name=lang==='fr'?m.fr:m.en;
+    questionTxt=`${t('quizQ_style')} ${name} ?`;
+    correctAns=m.style;
+    wrongPool=MONUMENTS.filter(x=>x.style!==m.style).map(x=>x.style);
+  }
+
+  const wrongs=shuffle([...new Set(wrongPool)]).slice(0,3);
+  const choices=shuffle([correctAns,...wrongs]);
+  s.correctAns=correctAns;
+
+  const imgSrc=urlCache['full_'+m.id]||urlCache[m.id]||PHOTO_URLS[m.id]||(m.wf&&m.wf.startsWith('http')?m.wf:null);
+  const imgHtml=imgSrc
+    ?`<div class="quiz-img-wrap"><img src="${imgSrc}" alt=""></div>`
+    :`<div class="quiz-img-emoji">${m.cat}</div>`;
+
+  wrap.innerHTML=`
+    <div class="quiz-score-bar">
+      <span class="quiz-score">${t('score')} : ${s.score}</span>
+      <span class="quiz-progress">${s.idx+1} / ${s.total}</span>
+    </div>
+    ${imgHtml}
+    <div class="quiz-question">${questionTxt}</div>
+    <div class="quiz-choices">
+      ${choices.map((c,i)=>`<button class="quiz-btn" id="qb${i}" onclick="answerQuiz('${c.replace(/'/g,"\\'")}',${i})">${c}</button>`).join('')}
+    </div>
+  `;
+}
+
+function answerQuiz(chosen,btnIdx){
+  const s=quizState;
+  if(s.answered) return;
+  s.answered=true;
+  const correct=chosen===s.correctAns;
+  if(correct) s.score++;
+
+  // Color all buttons
+  const choices=document.querySelectorAll('.quiz-btn');
+  choices.forEach((btn,i)=>{
+    btn.disabled=true;
+    if(btn.textContent===s.correctAns) btn.classList.add('correct');
+    else if(i===btnIdx&&!correct) btn.classList.add('wrong');
+  });
+
+  const nextBtn=document.createElement('button');
+  nextBtn.className='quiz-next';
+  nextBtn.textContent=t('next');
+  nextBtn.onclick=()=>{s.idx++;s.answered=false;renderQuiz();};
+  document.getElementById('quizWrap').appendChild(nextBtn);
+}
+
+// ═══════════════════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════════════════
+function openSettings(){
+  renderSettings();
+  document.getElementById('settings').classList.add('open');
+}
+function closeSettings(){
+  document.getElementById('settings').classList.remove('open');
+}
+
+function renderSettings(){
+  const body=document.getElementById('settingsBody');
+  let html='';
+
+  // Apps
+  html+=`<div class="settings-section"><div class="settings-sec-title">${t('apps')}</div>`;
+  APPS_SETTINGS.forEach(sec=>{
+    html+=`<div style="margin-bottom:14px">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:12px;color:var(--gold);margin-bottom:8px;letter-spacing:.08em">${sec.title}</div>
+      <div class="apps-grid">`;
+    sec.apps.forEach(app=>{
+      html+=`<a class="app-cell" href="https://apps.apple.com/app/id${app.id}" target="_blank">
+        <div class="app-icon" id="icon${app.id}"><img id="img${app.id}" alt="${app.n}"></div>
+        <div class="app-label">${app.n}</div>
+      </a>`;
+    });
+    html+=`</div></div>`;
+  });
+  html+=`</div>`;
+  body.innerHTML=html;
+
+  // JSONP icons
+  APPS_SETTINGS.forEach(sec=>{
+    sec.apps.forEach(app=>{
+      const numId=app.id;
+      window['itcb'+numId]=function(d){
+        if(d.results&&d.results[0]){
+          const img=document.getElementById('img'+numId);
+          if(img) img.src=d.results[0].artworkUrl60;
+        }
+      };
+      const s=document.createElement('script');
+      s.src=`https://itunes.apple.com/lookup?id=${numId}&callback=itcb${numId}`;
+      document.body.appendChild(s);
+    });
+  });
+}
+
+function chgFont(delta){
+  const r=document.documentElement;
+  const cur=parseFloat(getComputedStyle(r).getPropertyValue('--fs'))||1;
+  const nv=Math.min(1.5,Math.max(0.8,Math.round((cur+delta)*10)/10));
+  r.style.setProperty('--fs',nv);
+}
+
+// ═══════════════════════════════════════════════════════
+//  MAP HEIGHT FIX
+// ═══════════════════════════════════════════════════════
+function fixMapHeight(){
+  const tc1=document.getElementById('tc1');
+  const main=document.getElementById('mainScroll');
+  if(tc1&&main){
+    const h=main.offsetHeight;
+    document.getElementById('mapWrap').style.height=h+'px';
+    document.getElementById('map').style.height=h+'px';
+    if(leafMap) leafMap.invalidateSize();
+  }
+}
+window.addEventListener('resize',fixMapHeight);
+setTimeout(fixMapHeight,200);
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+// Pré-remplir urlCache avec les URLs connues dès le démarrage
+Object.entries(PHOTO_URLS).forEach(([id,url])=>{ urlCache[+id]=url; });
+// iPad : polices agrandies automatiquement
+if(/iPad|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document){
+  document.documentElement.style.setProperty('--fs','1.8');
+} else if(window.screen.width >= 768){
+  document.documentElement.style.setProperty('--fs','1.8');
+}
+renderList();
+</script>
+</body>
+</html>
